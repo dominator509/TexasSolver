@@ -4,6 +4,7 @@
 
 #include <solver/BestResponse.h>
 #include "solver/PCfrSolver.h"
+#include "solver/EvExport.h"
 
 //#define DEBUG;
 
@@ -248,7 +249,7 @@ PCfrSolver::chanceUtility(int player, shared_ptr<ChanceNode> node, const vector<
     //fill(results.begin(),results.end(),nullptr);
 
     vector<float> multiplier;
-    if(iter <= this->warmup){
+    if(iter <= this->warmup && !this->collecting_statics){
         multiplier = vector<float>(card_num);
         fill(multiplier.begin(), multiplier.end(), 0);
         for (int card_base = 0; card_base < card_num / 4; card_base++) {
@@ -285,7 +286,7 @@ PCfrSolver::chanceUtility(int player, shared_ptr<ChanceNode> node, const vector<
         Card *one_card = const_cast<Card *>(&(node->getCards()[card]));
         uint64_t card_long = Card::boardInt2long(one_card->getCardInt());//Card::boardCards2long(new Card[]{one_card});
         if (Card::boardsHasIntercept(card_long, current_board)) continue;
-        if (iter <= this->warmup && multiplier[card] == 0) continue;
+        if (iter <= this->warmup && !this->collecting_statics && multiplier[card] == 0) continue;
         if (this->color_iso_offset[deal][one_card->getCardInt() % 4] < 0) continue;
         valid_cards.push_back(card);
     }
@@ -376,7 +377,7 @@ PCfrSolver::chanceUtility(int player, shared_ptr<ChanceNode> node, const vector<
 #ifdef DEBUG
         if(child_utility.size() != chance_utility.size()) throw runtime_error("length not match");
 #endif
-        if(iter > this->warmup) {
+        if(iter > this->warmup || this->collecting_statics) {
             for (int i = 0; i < child_utility.size(); i++)
                 chance_utility[i] += child_utility[i];
         }else{
@@ -555,10 +556,10 @@ PCfrSolver::actionUtility(int player, shared_ptr<ActionNode> node, const vector<
                     float plus_reach_prob = oppo_same_card_ind == -1 ? 0 : reach_probs[oppo_same_card_ind];
                     const PrivateCards& one_player_hand = player_hand[hand_id];
                     float rp_sum = oppo_sum - oppo_card_sum[one_player_hand.card1] - oppo_card_sum[one_player_hand.card2] + plus_reach_prob;
-                    evs[hand_id + action_id * node_player_private_cards.size()] = (all_action_utility[action_id])[hand_id] / rp_sum;
+                    evs[hand_id + action_id * node_player_private_cards.size()] = ev_export::normalize((all_action_utility[action_id])[hand_id], rp_sum);
                 }
             }
-            trainable->setEv(evs); // NaN (zero opponent reach) entries are skipped by setEv and stay 0
+            trainable->setEv(evs); // normalize rejects inconsistent/non-finite inputs; exact 0/0 uses zero
         }
     }
     return payoffs;
