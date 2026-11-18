@@ -36,7 +36,14 @@ int main() {
     assert(denominator==0);
     float utility=compatible;
     assert(isinf(utility/denominator));
-    assert(ev_export::normalize(utility, denominator)==0);
+    bool cancellation=false;
+    try { ev_export::normalize(utility, denominator); }
+    catch(const runtime_error&) { cancellation=true; }
+    assert(cancellation);
+    bool negative=false;
+    try { ev_export::normalize(0,-1); }
+    catch(const runtime_error&) { negative=true; }
+    assert(negative);
     for (float bad : {numeric_limits<float>::infinity(),
                       -numeric_limits<float>::infinity(),
                       numeric_limits<float>::quiet_NaN()}) {

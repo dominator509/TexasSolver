@@ -559,7 +559,7 @@ PCfrSolver::actionUtility(int player, shared_ptr<ActionNode> node, const vector<
                     evs[hand_id + action_id * node_player_private_cards.size()] = ev_export::normalize((all_action_utility[action_id])[hand_id], rp_sum);
                 }
             }
-            trainable->setEv(evs); // NaN (zero opponent reach) entries are skipped by setEv and stay 0
+            trainable->setEv(evs); // normalize rejects inconsistent/non-finite inputs; exact 0/0 uses zero
         }
     }
     return payoffs;
