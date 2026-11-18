@@ -154,6 +154,30 @@ json DiscountedCfrTrainable::dump_strategy(bool with_state) {
     return std::move(retjson);
 }
 
+// Ported from upstream v0.2.0 (95f039c) DiscountedCfrTrainable::setEv / dump_evs; evs allocated lazily.
+void DiscountedCfrTrainable::setEv(const vector<float>& evs){
+    if(this->evs.empty()) this->evs = vector<float>(this->action_number * this->card_number,0.0);
+    if(evs.size() != this->evs.size()) throw runtime_error("size mismatch in discountcfrtrainable setEV");
+    for(int i = 0;i < evs.size();i ++) if(evs[i] == evs[i])this->evs[i] = evs[i];
+}
+
+json DiscountedCfrTrainable::dump_evs() {
+    if(this->evs.empty()) throw runtime_error("dump_evs: no evs collected for this node");
+    json evs;
+    vector<string> actions_str;
+    for(GameActions& one_action:action_node.getActions()) actions_str.push_back(one_action.toString());
+    for(int i = 0;i < this->privateCards->size();i ++){
+        PrivateCards& one_private_card = (*this->privateCards)[i];
+        vector<float> one_evs(this->action_number);
+        for(int j = 0;j < this->action_number;j ++) one_evs[j] = this->evs[j * this->privateCards->size() + i];
+        evs[fmt::format("{}",one_private_card.toString())] = one_evs;
+    }
+    json retjson;
+    retjson["actions"] = std::move(actions_str);
+    retjson["evs"] = std::move(evs);
+    return std::move(retjson);
+}
+
 Trainable::TrainableType DiscountedCfrTrainable::get_type() {
     return DISCOUNTED_CFR_TRAINABLE;
 }

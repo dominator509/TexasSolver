@@ -79,6 +79,7 @@ void PokerSolver::train(string p1_range, string p2_range, string boards, string 
             , use_isomorphism
             , threads
     );
+    this->solver->dump_evs = this->dump_evs;
     this->solver->train();
 }
 

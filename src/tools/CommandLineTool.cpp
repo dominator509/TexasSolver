@@ -169,6 +169,8 @@ void CommandLineTool::processCommand(string input) {
     }else if(command == "dump_result"){
         string output_file = paramstr;
         this->ps.dump_strategy(output_file,this->dump_rounds);
+    }else if(command == "set_dump_evs"){ // 1 = also write per-action EVs (set before start_solve)
+        this->ps.dump_evs = stoi(paramstr) != 0;
     }else if(command == "set_dump_rounds"){
         this->dump_rounds = stoi(paramstr);
     }else{

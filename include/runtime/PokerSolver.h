@@ -44,6 +44,7 @@ public:
             int threads
             );
     void dump_strategy(string dump_file,int dump_rounds);
+    bool dump_evs = false;
 private:
     shared_ptr<Dic5Compairer> compairer;
     Deck deck;

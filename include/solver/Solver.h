@@ -20,6 +20,7 @@ public:
     virtual void train() = 0;
     virtual json dumps(bool with_status,int depth) = 0;
     shared_ptr<GameTree> tree;
+    bool dump_evs = false; // set by console "set_dump_evs 1"; false = stock behaviour
 };
 
 
