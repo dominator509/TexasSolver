@@ -3,6 +3,7 @@
 //
 
 #include "trainable/DiscountedCfrTrainable.h"
+#include <cmath>
 //#define DEBUG;
 
 DiscountedCfrTrainable::DiscountedCfrTrainable(vector<PrivateCards> *privateCards,
@@ -158,7 +159,10 @@ json DiscountedCfrTrainable::dump_strategy(bool with_state) {
 void DiscountedCfrTrainable::setEv(const vector<float>& evs){
     if(this->evs.empty()) this->evs = vector<float>(this->action_number * this->card_number,0.0);
     if(evs.size() != this->evs.size()) throw runtime_error("size mismatch in discountcfrtrainable setEV");
-    for(int i = 0;i < evs.size();i ++) if(evs[i] == evs[i])this->evs[i] = evs[i];
+    for(int i = 0;i < evs.size();i ++) {
+        if(std::isinf(evs[i])) throw runtime_error("non-finite EV in setEv");
+        if(!std::isnan(evs[i])) this->evs[i] = evs[i];
+    }
 }
 
 json DiscountedCfrTrainable::dump_evs() {
