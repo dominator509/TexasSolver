@@ -6,6 +6,7 @@
 #define TEXASSOLVER_TRAINABLE_H
 #include <vector>
 #include "json.hpp"
+#include <stdexcept>
 using namespace std;
 using json = nlohmann::json;
 
@@ -20,6 +21,9 @@ public:
     virtual void updateRegrets(const vector<float>& regrets,int iteration_number,const vector<float>& reach_probs) = 0;
     virtual void copyStrategy(shared_ptr<Trainable> other_trainable) = 0;
     virtual json dump_strategy(bool with_state) = 0;
+    // set_dump_evs: per-action EVs collected in one extra pass after training.
+    virtual void setEv(const vector<float>& evs) { throw runtime_error("setEv not supported by this trainable"); }
+    virtual json dump_evs() { throw runtime_error("dump_evs not supported by this trainable"); }
     virtual TrainableType get_type() = 0;
 };
 

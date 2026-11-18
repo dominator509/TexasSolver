@@ -23,6 +23,7 @@ private:
     // TODO 這裏能不能减肥
     vector<float> r_plus_sum;
     vector<float> cum_r_plus;
+    vector<float> evs; // allocated only by setEv()
     //vector<float> cum_r_plus_sum;
     //vector<float> current_strategy;
     //vector<float> average_strategy;
@@ -40,6 +41,10 @@ public:
     void copyStrategy(shared_ptr<Trainable> other_trainable);
 
     json dump_strategy(bool with_state) override;
+
+    void setEv(const vector<float>& evs) override;
+
+    json dump_evs() override;
 
 private:
 

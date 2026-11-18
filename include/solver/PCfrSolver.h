@@ -117,6 +117,7 @@ private:
     GameTreeNode::GameRound root_round;
     GameTreeNode::GameRound split_round;
     bool distributing_task;
+    bool collecting_statics = false; // true only during the post-training EV pass
     float accuracy;
     bool use_isomorphism;
 

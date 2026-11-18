@@ -425,7 +425,9 @@ PCfrSolver::actionUtility(int player, shared_ptr<ActionNode> node, const vector<
     }
 #endif
 
-    const vector<float> current_strategy = trainable->getcurrentStrategy();
+    // The EV pass walks the tree with the AVERAGE strategy (the one dump_result writes), so each
+    // per-action EV is the value of that action against the dumped strategy profile.
+    const vector<float> current_strategy = this->collecting_statics ? trainable->getAverageStrategy() : trainable->getcurrentStrategy();
 #ifdef DEBUG
     if (current_strategy.size() != actions.size() * node_player_private_cards.size()) {
         node->printHistory();
@@ -511,7 +513,7 @@ PCfrSolver::actionUtility(int player, shared_ptr<ActionNode> node, const vector<
             }
         }
 
-        if(!this->distributing_task) {
+        if(!this->distributing_task && !this->collecting_statics) {
             if (iter > this->warmup) {
                 trainable->updateRegrets(regrets, iter + 1, reach_probs);
             }/*else if(iter < this->warmup){
@@ -533,6 +535,30 @@ PCfrSolver::actionUtility(int player, shared_ptr<ActionNode> node, const vector<
                     }
                 }
             }
+        }
+        if(this->collecting_statics){
+            // EV formula ported from upstream v0.2.0 (95f039c) PCfrSolver::actionUtility:
+            // action utility normalised by the opponent reach mass compatible with each hand.
+            const vector<PrivateCards>& oppo_hand = playerHands(oppo);
+            float oppo_sum = 0;
+            vector<float> oppo_card_sum = vector<float>(52, 0);
+            for(int i = 0;i < oppo_hand.size();i ++){
+                oppo_card_sum[oppo_hand[i].card1] += reach_probs[i];
+                oppo_card_sum[oppo_hand[i].card2] += reach_probs[i];
+                oppo_sum += reach_probs[i];
+            }
+            const vector<PrivateCards>& player_hand = playerHands(player);
+            vector<float> evs(actions.size() * node_player_private_cards.size(),0.0);
+            for (int action_id = 0; action_id < actions.size(); action_id++) {
+                for (int hand_id = 0; hand_id < node_player_private_cards.size(); hand_id++) {
+                    int oppo_same_card_ind = this->pcm.indPlayer2Player(player,oppo,hand_id);
+                    float plus_reach_prob = oppo_same_card_ind == -1 ? 0 : reach_probs[oppo_same_card_ind];
+                    const PrivateCards& one_player_hand = player_hand[hand_id];
+                    float rp_sum = oppo_sum - oppo_card_sum[one_player_hand.card1] - oppo_card_sum[one_player_hand.card2] + plus_reach_prob;
+                    evs[hand_id + action_id * node_player_private_cards.size()] = (all_action_utility[action_id])[hand_id] / rp_sum;
+                }
+            }
+            trainable->setEv(evs); // NaN (zero opponent reach) entries are skipped by setEv and stay 0
         }
     }
     return payoffs;
@@ -765,6 +791,17 @@ void PCfrSolver::train() {
             //begintime = timeSinceEpochMillisec();
         }
     }
+    if(this->dump_evs){
+        // one extra traversal per player with regret/strategy updates disabled, collecting EVs.
+        cout << "collecting evs" << endl;
+        this->collecting_statics = true;
+        for(int player_id = 0;player_id < this->player_number;player_id ++) {
+            this->round_deal = vector<int>{-1,-1,-1,-1};
+            cfr(player_id, this->tree->getRoot(), reach_probs[1 - player_id], this->iteration_number, this->initial_board_long,0);
+        }
+        this->collecting_statics = false;
+        cout << "evs collected" << endl;
+    }
     if(!this->logfile.empty()) {
         fileWriter.flush();
         fileWriter.close();
@@ -840,6 +877,11 @@ void PCfrSolver::reConvertJson(const shared_ptr<GameTreeNode>& node,json& strate
                 int rank2 = one_exchange[1];
                 this->exchangeRange((*retval)["strategy"]["strategy"],rank1,rank2,one_node);
 
+            }
+            if(this->dump_evs){ // same isomorphism handling as the strategy
+                (*retval)["evs"] = trainable->dump_evs();
+                for(vector<int> one_exchange:exchange_color_list)
+                    this->exchangeRange((*retval)["evs"]["evs"],one_exchange[0],one_exchange[1],one_node);
             }
         }
         (*retval)["node_type"] = "action_node";
